@@ -15,7 +15,6 @@ cd ..
 echo "Line No. $n : $line"
 cd AceDuino
 
-
 n=$((n+1))
 done < "repos.list"
 
