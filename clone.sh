@@ -11,10 +11,10 @@
 n=1
 while read line; do
 # reading each line
-#cd ..
+cd ..
 # echo "Line No. $n : $line"
-git clone $line
-#cd AceDuino
+git clone $line 
+cd AceDuino
 
 n=$((n+1))
 done < "repos.list"
