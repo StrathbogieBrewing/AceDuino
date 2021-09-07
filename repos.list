@@ -1,5 +1,11 @@
-git@github.com:StrathbogieBrewing/megate.git
 git@github.com:StrathbogieBrewing/AceBMS.git
 git@github.com:StrathbogieBrewing/AceBus.git
 git@github.com:StrathbogieBrewing/AceMessage.git
 git@github.com:StrathbogieBrewing/MCP2515.git
+git@github.com:StrathbogieBrewing/VEDirect.git
+git@github.com:StrathbogieBrewing/AcePlot.git
+git@github.com:StrathbogieBrewing/AceLog.git
+git@github.com:StrathbogieBrewing/AceDRED.git
+git@github.com:StrathbogieBrewing/AceMenu.git
+git@github.com:StrathbogieBrewing/AceMPPT.git
+git@github.com:StrathbogieBrewing/AceDump.git

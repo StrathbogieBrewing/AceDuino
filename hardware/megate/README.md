@@ -1,0 +1,2 @@
+# megate
+AVR Homebrew Hardware

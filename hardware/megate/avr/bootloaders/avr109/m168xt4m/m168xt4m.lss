@@ -1,0 +1,713 @@
+
+m168xt4m.elf:     file format elf32-avr
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .data         00000000  00800100  00003ff8  0000028c  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  1 .text         000001f8  00003e00  00003e00  00000094  2**1
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  2 .bss          00000080  00800100  00800100  0000028c  2**0
+                  ALLOC
+  3 .debug_aranges 00000020  00000000  00000000  00000290  2**3
+                  CONTENTS, READONLY, DEBUGGING
+  4 .debug_info   0000007a  00000000  00000000  000002b0  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  5 .debug_abbrev 00000014  00000000  00000000  0000032a  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  6 .debug_line   00000596  00000000  00000000  0000033e  2**0
+                  CONTENTS, READONLY, DEBUGGING
+
+Disassembly of section .text:
+
+00003e00 <__ctors_end>:
+	.section .text
+
+mainEntry:
+
+; *** test if bootloader requested by external reset ***
+  in		TEMP, _SFR_IO_ADDR(MCUSR)
+    3e00:	54 b7       	in	r21, 0x34	; 52
+
+	; clear the external and watchdog reset flag
+	wdr
+    3e02:	a8 95       	wdr
+  ldi   TEMPL, ~((1<<EXTRF) | (1<<WDRF))
+    3e04:	85 ef       	ldi	r24, 0xF5	; 245
+  out   _SFR_IO_ADDR(MCUSR), TEMPL
+    3e06:	84 bf       	out	0x34, r24	; 52
+
+	; disable watchdog timer
+	ldi   TEMPL, (1<<WDCE) | (1<<WDE)
+    3e08:	88 e1       	ldi	r24, 0x18	; 24
+	sts   _SFR_MEM_ADDR(WDTCSR), TEMPL
+    3e0a:	80 93 60 00 	sts	0x0060, r24	; 0x800060 <__DATA_REGION_ORIGIN__>
+	clr   TEMPL
+    3e0e:	88 27       	eor	r24, r24
+	sts   _SFR_MEM_ADDR(WDTCSR), TEMPL
+    3e10:	80 93 60 00 	sts	0x0060, r24	; 0x800060 <__DATA_REGION_ORIGIN__>
+
+  ; jump to application code if not external reset
+	sbrs	TEMP, EXTRF
+    3e14:	51 ff       	sbrs	r21, 1
+	jmp	  0
+    3e16:	0c 94 00 00 	jmp	0	; 0x0 <__FUSE_REGION_LENGTH__-0x400>
+
+00003e1a <programmerType>:
+    3e1a:	41 56       	subi	r20, 0x61	; 97
+    3e1c:	52 42       	sbci	r21, 0x22	; 34
+    3e1e:	4f 4f       	sbci	r20, 0xFF	; 255
+    3e20:	54 00       	.word	0x0054	; ????
+
+00003e22 <signatureBytes>:
+    3e22:	06 94       	lsr	r0
+    3e24:	1e 00       	.word	0x001e	; ????
+
+00003e26 <softwareVersion>:
+    3e26:	32 33       	cpi	r19, 0x32	; 50
+	...
+
+00003e2a <startBootloader>:
+
+; *** application boot entry point ***
+startBootloader:
+; *** initialise micro ***
+	; initialise registers
+	clr		ZERO
+    3e2a:	44 24       	eor	r4, r4
+	; clear status register
+	out		_SFR_IO_ADDR(SREG), ZERO
+    3e2c:	4f be       	out	0x3f, r4	; 63
+	; set up stack to top of available sram
+	ldi		TEMPL, lo8(RAMEND)
+    3e2e:	8f ef       	ldi	r24, 0xFF	; 255
+	ldi		TEMPH, hi8(RAMEND)
+    3e30:	94 e0       	ldi	r25, 0x04	; 4
+	out		_SFR_IO_ADDR(SPH), TEMPH
+    3e32:	9e bf       	out	0x3e, r25	; 62
+	out		_SFR_IO_ADDR(SPL), TEMPL
+    3e34:	8d bf       	out	0x3d, r24	; 61
+
+00003e36 <inituart>:
+
+
+; *** initialise uart ***
+inituart:
+	; set baud rate to 9600 bps
+	ldi     TEMP, 25
+    3e36:	59 e1       	ldi	r21, 0x19	; 25
+	sts     _SFR_MEM_ADDR(UBRR0L), TEMP
+    3e38:	50 93 c4 00 	sts	0x00C4, r21	; 0x8000c4 <__DATA_REGION_ORIGIN__+0x64>
+	; clear txc
+	ldi     TEMP, (1 << TXC0)
+    3e3c:	50 e4       	ldi	r21, 0x40	; 64
+  sts     _SFR_MEM_ADDR(UCSR0A), TEMP
+    3e3e:	50 93 c0 00 	sts	0x00C0, r21	; 0x8000c0 <__DATA_REGION_ORIGIN__+0x60>
+	; enable rx and tx
+	ldi     TEMP, ((1 << RXEN0) | (1 << TXEN0))
+    3e42:	58 e1       	ldi	r21, 0x18	; 24
+	sts     _SFR_MEM_ADDR(UCSR0B), TEMP
+    3e44:	50 93 c1 00 	sts	0x00C1, r21	; 0x8000c1 <__DATA_REGION_ORIGIN__+0x61>
+	rjmp	  mainLoop
+    3e48:	20 c0       	rjmp	.+64     	; 0x3e8a <mainLoop>
+
+00003e4a <uartPut>:
+
+; *** send subroutine (value in TEMP) ***
+uartPut:
+  ; force half duplex to block any echo if connected to a bus
+	sts    _SFR_MEM_ADDR(UDR0), TEMP
+    3e4a:	50 93 c6 00 	sts	0x00C6, r21	; 0x8000c6 <__DATA_REGION_ORIGIN__+0x66>
+	ldi     TEMP, ((1 << TXEN0)) ; disable rx
+    3e4e:	58 e0       	ldi	r21, 0x08	; 8
+	sts     _SFR_MEM_ADDR(UCSR0B), TEMP
+    3e50:	50 93 c1 00 	sts	0x00C1, r21	; 0x8000c1 <__DATA_REGION_ORIGIN__+0x61>
+
+00003e54 <uartTxLoop>:
+uartTxLoop:
+	lds    TEMP, _SFR_MEM_ADDR(UCSR0A)
+    3e54:	50 91 c0 00 	lds	r21, 0x00C0	; 0x8000c0 <__DATA_REGION_ORIGIN__+0x60>
+	sbrs   TEMP, TXC0
+    3e58:	56 ff       	sbrs	r21, 6
+	rjmp   uartTxLoop
+    3e5a:	fc cf       	rjmp	.-8      	; 0x3e54 <uartTxLoop>
+	ldi     TEMP, (1 << TXC0)
+    3e5c:	50 e4       	ldi	r21, 0x40	; 64
+	sts     _SFR_MEM_ADDR(UCSR0A), TEMP
+    3e5e:	50 93 c0 00 	sts	0x00C0, r21	; 0x8000c0 <__DATA_REGION_ORIGIN__+0x60>
+	ldi     TEMP, ((1 << RXEN0) | (1 << TXEN0))  ; re-enable rx
+    3e62:	58 e1       	ldi	r21, 0x18	; 24
+	sts     _SFR_MEM_ADDR(UCSR0B), TEMP
+    3e64:	50 93 c1 00 	sts	0x00C1, r21	; 0x8000c1 <__DATA_REGION_ORIGIN__+0x61>
+	ret
+    3e68:	08 95       	ret
+
+00003e6a <uartPutString>:
+
+; *** put string from progmem subroutine (LSB of address in R30) ***
+uartPutString:
+	ldi		ZH, hi8(BOOTSTART << 1)
+    3e6a:	fe e3       	ldi	r31, 0x3E	; 62
+	lpm		TEMP, Z+
+    3e6c:	55 91       	lpm	r21, Z+
+	or		TEMP, TEMP
+    3e6e:	55 2b       	or	r21, r21
+	breq	uartPutStringExit
+    3e70:	11 f0       	breq	.+4      	; 0x3e76 <uartPutStringExit>
+	rcall	uartPut
+    3e72:	eb df       	rcall	.-42     	; 0x3e4a <uartPut>
+	rjmp	uartPutString
+    3e74:	fa cf       	rjmp	.-12     	; 0x3e6a <uartPutString>
+
+00003e76 <uartPutStringExit>:
+uartPutStringExit:
+	ret
+    3e76:	08 95       	ret
+
+00003e78 <uartGet>:
+
+; *** receive subroutine (value returned in RXCHAR) ***
+uartGet:
+	lds     RXCHAR, _SFR_MEM_ADDR(UCSR0A)
+    3e78:	40 91 c0 00 	lds	r20, 0x00C0	; 0x8000c0 <__DATA_REGION_ORIGIN__+0x60>
+	sbrs    RXCHAR, RXC0
+    3e7c:	47 ff       	sbrs	r20, 7
+	rjmp	  uartGet
+    3e7e:	fc cf       	rjmp	.-8      	; 0x3e78 <uartGet>
+	lds     RXCHAR, _SFR_MEM_ADDR(UDR0)
+    3e80:	40 91 c6 00 	lds	r20, 0x00C6	; 0x8000c6 <__DATA_REGION_ORIGIN__+0x66>
+	ret
+    3e84:	08 95       	ret
+
+00003e86 <uartPutReturnAndMainLoop>:
+
+; *** send return character and fall back into main loop ***
+uartPutReturnAndMainLoop:
+	ldi		TEMP, '\r'
+    3e86:	5d e0       	ldi	r21, 0x0D	; 13
+
+00003e88 <uartPutAndMainLoop>:
+uartPutAndMainLoop:
+	rcall 	uartPut
+    3e88:	e0 df       	rcall	.-64     	; 0x3e4a <uartPut>
+
+00003e8a <mainLoop>:
+
+; *** main program loop ***
+mainLoop:
+
+	; get received character
+	rcall	uartGet
+    3e8a:	f6 df       	rcall	.-20     	; 0x3e78 <uartGet>
+
+00003e8c <blockSupport>:
+
+blockSupport:
+	cpi		RXCHAR, 'b'
+    3e8c:	42 36       	cpi	r20, 0x62	; 98
+	brne	readBlock
+    3e8e:	31 f4       	brne	.+12     	; 0x3e9c <readBlock>
+	ldi		TEMP, 'Y'
+    3e90:	59 e5       	ldi	r21, 0x59	; 89
+	rcall	uartPut
+    3e92:	db df       	rcall	.-74     	; 0x3e4a <uartPut>
+	ldi		TEMP, 0
+    3e94:	50 e0       	ldi	r21, 0x00	; 0
+	rcall	uartPut
+    3e96:	d9 df       	rcall	.-78     	; 0x3e4a <uartPut>
+	ldi		TEMP, BUFFERSIZE
+    3e98:	50 e8       	ldi	r21, 0x80	; 128
+  rjmp uartPutAndMainLoop
+    3e9a:	f6 cf       	rjmp	.-20     	; 0x3e88 <uartPutAndMainLoop>
+
+00003e9c <readBlock>:
+
+readBlock:
+	cpi		RXCHAR, 'g'
+    3e9c:	47 36       	cpi	r20, 0x67	; 103
+	brne	writeBlock
+    3e9e:	e9 f4       	brne	.+58     	; 0x3eda <writeBlock>
+	rcall	uartGet
+    3ea0:	eb df       	rcall	.-42     	; 0x3e78 <uartGet>
+	ldi		TEMPH, 0			; limit buffer size to 256 characters
+    3ea2:	90 e0       	ldi	r25, 0x00	; 0
+	rcall	uartGet
+    3ea4:	e9 df       	rcall	.-46     	; 0x3e78 <uartGet>
+	mov		TEMPL, RXCHAR
+    3ea6:	84 2f       	mov	r24, r20
+	rcall	uartGet
+    3ea8:	e7 df       	rcall	.-50     	; 0x3e78 <uartGet>
+	cpi		RXCHAR, 'E'
+    3eaa:	45 34       	cpi	r20, 0x45	; 69
+	breq	readEeprom
+    3eac:	59 f0       	breq	.+22     	; 0x3ec4 <readEeprom>
+
+00003eae <readFlash>:
+
+readFlash:
+	movw	ZL, ADDRL
+    3eae:	fd 01       	movw	r30, r26
+	add		ZL, ZL
+    3eb0:	ee 0f       	add	r30, r30
+	adc		ZH, ZH
+    3eb2:	ff 1f       	adc	r31, r31
+
+00003eb4 <readFlashLoop>:
+readFlashLoop:
+	lpm		TEMP, Z+
+    3eb4:	55 91       	lpm	r21, Z+
+	rcall	uartPut
+    3eb6:	c9 df       	rcall	.-110    	; 0x3e4a <uartPut>
+	lpm		TEMP, Z+
+    3eb8:	55 91       	lpm	r21, Z+
+	rcall	uartPut
+    3eba:	c7 df       	rcall	.-114    	; 0x3e4a <uartPut>
+	adiw	ADDRL, 1
+    3ebc:	11 96       	adiw	r26, 0x01	; 1
+	sbiw	TEMPL, 2
+    3ebe:	02 97       	sbiw	r24, 0x02	; 2
+	brne	readFlashLoop
+    3ec0:	c9 f7       	brne	.-14     	; 0x3eb4 <readFlashLoop>
+	rjmp	readDone
+    3ec2:	0a c0       	rjmp	.+20     	; 0x3ed8 <readDone>
+
+00003ec4 <readEeprom>:
+
+readEeprom:
+	sbic 	_SFR_IO_ADDR(EECR), EEPE
+    3ec4:	f9 99       	sbic	0x1f, 1	; 31
+	rjmp 	readEeprom
+    3ec6:	fe cf       	rjmp	.-4      	; 0x3ec4 <readEeprom>
+	out 	_SFR_IO_ADDR(EEARH), ADDRH
+    3ec8:	b2 bd       	out	0x22, r27	; 34
+	out 	_SFR_IO_ADDR(EEARL), ADDRL
+    3eca:	a1 bd       	out	0x21, r26	; 33
+	sbi 	_SFR_IO_ADDR(EECR), EERE
+    3ecc:	f8 9a       	sbi	0x1f, 0	; 31
+	in 		TEMP, _SFR_IO_ADDR(EEDR)
+    3ece:	50 b5       	in	r21, 0x20	; 32
+	rcall	uartPut
+    3ed0:	bc df       	rcall	.-136    	; 0x3e4a <uartPut>
+	adiw	ADDRL, 1
+    3ed2:	11 96       	adiw	r26, 0x01	; 1
+	sbiw	TEMPL, 1
+    3ed4:	01 97       	sbiw	r24, 0x01	; 1
+	brne	readEeprom
+    3ed6:	b1 f7       	brne	.-20     	; 0x3ec4 <readEeprom>
+
+00003ed8 <readDone>:
+
+readDone:
+	rjmp	mainLoop
+    3ed8:	d8 cf       	rjmp	.-80     	; 0x3e8a <mainLoop>
+
+00003eda <writeBlock>:
+
+writeBlock:
+	cpi		RXCHAR, 'B'
+    3eda:	42 34       	cpi	r20, 0x42	; 66
+	breq	writeGetParams
+    3edc:	09 f0       	breq	.+2      	; 0x3ee0 <writeGetParams>
+	rjmp	autoIncrement
+    3ede:	40 c0       	rjmp	.+128    	; 0x3f60 <autoIncrement>
+
+00003ee0 <writeGetParams>:
+
+writeGetParams:
+	rcall	uartGet
+    3ee0:	cb df       	rcall	.-106    	; 0x3e78 <uartGet>
+	ldi		TEMPH, 0					; limit buffer size to 256 characters
+    3ee2:	90 e0       	ldi	r25, 0x00	; 0
+	rcall	uartGet
+    3ee4:	c9 df       	rcall	.-110    	; 0x3e78 <uartGet>
+	mov		TEMPL, RXCHAR
+    3ee6:	84 2f       	mov	r24, r20
+	rcall	uartGet
+    3ee8:	c7 df       	rcall	.-114    	; 0x3e78 <uartGet>
+	mov		STATUS, RXCHAR
+    3eea:	04 2f       	mov	r16, r20
+	movw	WORDL, TEMPL
+    3eec:	9c 01       	movw	r18, r24
+	ldi		YL, lo8(buffer)
+    3eee:	c0 e0       	ldi	r28, 0x00	; 0
+	ldi		YH, hi8(buffer)
+    3ef0:	d1 e0       	ldi	r29, 0x01	; 1
+
+00003ef2 <writeGetData>:
+
+writeGetData:
+	rcall	uartGet
+    3ef2:	c2 df       	rcall	.-124    	; 0x3e78 <uartGet>
+	st		Y+, RXCHAR
+    3ef4:	49 93       	st	Y+, r20
+	sbiw	TEMPL, 1
+    3ef6:	01 97       	sbiw	r24, 0x01	; 1
+	brne	writeGetData
+    3ef8:	e1 f7       	brne	.-8      	; 0x3ef2 <writeGetData>
+	ldi		YL, lo8(buffer)
+    3efa:	c0 e0       	ldi	r28, 0x00	; 0
+	ldi		YH, hi8(buffer)
+    3efc:	d1 e0       	ldi	r29, 0x01	; 1
+	movw	TEMPL, WORDL
+    3efe:	c9 01       	movw	r24, r18
+	cpi		STATUS, 'E'
+    3f00:	05 34       	cpi	r16, 0x45	; 69
+	brne	writeFlash
+    3f02:	61 f4       	brne	.+24     	; 0x3f1c <writeFlash>
+
+00003f04 <writeEeprom>:
+
+writeEeprom:
+	ld		TEMP, Y+
+    3f04:	59 91       	ld	r21, Y+
+
+00003f06 <writeEepromWait>:
+writeEepromWait:
+	sbic 	_SFR_IO_ADDR(EECR), EEPE
+    3f06:	f9 99       	sbic	0x1f, 1	; 31
+	rjmp 	writeEepromWait
+    3f08:	fe cf       	rjmp	.-4      	; 0x3f06 <writeEepromWait>
+	out 	_SFR_IO_ADDR(EEARH), ADDRH
+    3f0a:	b2 bd       	out	0x22, r27	; 34
+	out 	_SFR_IO_ADDR(EEARL), ADDRL
+    3f0c:	a1 bd       	out	0x21, r26	; 33
+	out 	_SFR_IO_ADDR(EEDR), TEMP
+    3f0e:	50 bd       	out	0x20, r21	; 32
+	sbi 	_SFR_IO_ADDR(EECR), EEMPE
+    3f10:	fa 9a       	sbi	0x1f, 2	; 31
+	sbi 	_SFR_IO_ADDR(EECR), EEPE
+    3f12:	f9 9a       	sbi	0x1f, 1	; 31
+	adiw	ADDRL, 1
+    3f14:	11 96       	adiw	r26, 0x01	; 1
+	sbiw	TEMPL, 1
+    3f16:	01 97       	sbiw	r24, 0x01	; 1
+	brne	writeEeprom
+    3f18:	a9 f7       	brne	.-22     	; 0x3f04 <writeEeprom>
+	rjmp	uartPutReturnAndMainLoop
+    3f1a:	b5 cf       	rjmp	.-150    	; 0x3e86 <uartPutReturnAndMainLoop>
+
+00003f1c <writeFlash>:
+
+writeFlash:
+	sbic 	_SFR_IO_ADDR(EECR), EEPE
+    3f1c:	f9 99       	sbic	0x1f, 1	; 31
+	rjmp 	writeFlash
+    3f1e:	fe cf       	rjmp	.-4      	; 0x3f1c <writeFlash>
+	movw	ZL, ADDRL
+    3f20:	fd 01       	movw	r30, r26
+	add		ZL, ZL
+    3f22:	ee 0f       	add	r30, r30
+	adc		ZH, ZH
+    3f24:	ff 1f       	adc	r31, r31
+	movw	WORDL, ZL
+    3f26:	9f 01       	movw	r18, r30
+
+	ldi 	TEMP, (1<<PGERS) | (1<<SELFPRGEN)		; page erase
+    3f28:	53 e0       	ldi	r21, 0x03	; 3
+	rcall	writeFlashSPM
+    3f2a:	0d d0       	rcall	.+26     	; 0x3f46 <writeFlashSPM>
+	ldi 	TEMP, (1<<RWWSRE) | (1<<SELFPRGEN)		; re-enable the RWW section
+    3f2c:	51 e1       	ldi	r21, 0x11	; 17
+	rcall	writeFlashSPM
+    3f2e:	0b d0       	rcall	.+22     	; 0x3f46 <writeFlashSPM>
+
+00003f30 <writeFlashLoop>:
+
+writeFlashLoop:
+	ld		R0, Y+
+    3f30:	09 90       	ld	r0, Y+
+	ld		R1, Y+
+    3f32:	19 90       	ld	r1, Y+
+	ldi 	TEMP, (1<<SELFPRGEN)					; copy word to flash write buffer
+    3f34:	51 e0       	ldi	r21, 0x01	; 1
+	rcall	writeFlashSPM
+    3f36:	07 d0       	rcall	.+14     	; 0x3f46 <writeFlashSPM>
+	adiw	ZL, 2
+    3f38:	32 96       	adiw	r30, 0x02	; 2
+	adiw	ADDRL, 1
+    3f3a:	11 96       	adiw	r26, 0x01	; 1
+	sbiw	TEMPL, 2
+    3f3c:	02 97       	sbiw	r24, 0x02	; 2
+	brne	writeFlashLoop
+    3f3e:	c1 f7       	brne	.-16     	; 0x3f30 <writeFlashLoop>
+
+	movw	ZL, WORDL
+    3f40:	f9 01       	movw	r30, r18
+	rcall	writeFlashPage
+    3f42:	07 d0       	rcall	.+14     	; 0x3f52 <writeFlashPage>
+	rjmp	uartPutReturnAndMainLoop
+    3f44:	a0 cf       	rjmp	.-192    	; 0x3e86 <uartPutReturnAndMainLoop>
+
+00003f46 <writeFlashSPM>:
+
+writeFlashSPM:
+	in 		STATUS, _SFR_IO_ADDR(SPMCSR)			; check for previous SPM complete
+    3f46:	07 b7       	in	r16, 0x37	; 55
+	sbrc 	STATUS, SELFPRGEN
+    3f48:	00 fd       	sbrc	r16, 0
+	rjmp 	writeFlashSPM
+    3f4a:	fd cf       	rjmp	.-6      	; 0x3f46 <writeFlashSPM>
+	out 	_SFR_IO_ADDR(SPMCSR), TEMP			; execute spm with action given by TEMP
+    3f4c:	57 bf       	out	0x37, r21	; 55
+	spm
+    3f4e:	e8 95       	spm
+	ret
+    3f50:	08 95       	ret
+
+00003f52 <writeFlashPage>:
+
+writeFlashPage:
+	cpi		ZH, hi8(BOOTSTART << 1)
+    3f52:	fe 33       	cpi	r31, 0x3E	; 62
+	brsh	writeBootLoaderInhibit
+    3f54:	20 f4       	brcc	.+8      	; 0x3f5e <writeBootLoaderInhibit>
+	ldi 	TEMP, (1<<PGWRT) | (1<<SELFPRGEN)		; execute page write
+    3f56:	55 e0       	ldi	r21, 0x05	; 5
+	rcall	writeFlashSPM
+    3f58:	f6 df       	rcall	.-20     	; 0x3f46 <writeFlashSPM>
+	ldi 	TEMP, (1<<RWWSRE) | (1<<SELFPRGEN)	; re-enable the RWW section
+    3f5a:	51 e1       	ldi	r21, 0x11	; 17
+	rcall	writeFlashSPM
+    3f5c:	f4 df       	rcall	.-24     	; 0x3f46 <writeFlashSPM>
+
+00003f5e <writeBootLoaderInhibit>:
+writeBootLoaderInhibit:
+	ret
+    3f5e:	08 95       	ret
+
+00003f60 <autoIncrement>:
+
+autoIncrement:
+	cpi		RXCHAR, 'a'
+    3f60:	41 36       	cpi	r20, 0x61	; 97
+	brne	setAddress
+    3f62:	11 f4       	brne	.+4      	; 0x3f68 <setAddress>
+
+00003f64 <autoIncrementSupported>:
+autoIncrementSupported:
+	ldi		TEMP, 'Y'
+    3f64:	59 e5       	ldi	r21, 0x59	; 89
+  rjmp uartPutAndMainLoop
+    3f66:	90 cf       	rjmp	.-224    	; 0x3e88 <uartPutAndMainLoop>
+
+00003f68 <setAddress>:
+
+setAddress:
+	cpi		RXCHAR, 'A'
+    3f68:	41 34       	cpi	r20, 0x41	; 65
+	brne	eraseChip
+    3f6a:	29 f4       	brne	.+10     	; 0x3f76 <eraseChip>
+	rcall	uartGet
+    3f6c:	85 df       	rcall	.-246    	; 0x3e78 <uartGet>
+	mov		ADDRH, RXCHAR
+    3f6e:	b4 2f       	mov	r27, r20
+	rcall	uartGet
+    3f70:	83 df       	rcall	.-250    	; 0x3e78 <uartGet>
+	mov		ADDRL, RXCHAR
+    3f72:	a4 2f       	mov	r26, r20
+	rjmp	uartPutReturnAndMainLoop
+    3f74:	88 cf       	rjmp	.-240    	; 0x3e86 <uartPutReturnAndMainLoop>
+
+00003f76 <eraseChip>:
+
+eraseChip:
+	cpi		RXCHAR, 'e'							; dont do anything because we erase page by page
+    3f76:	45 36       	cpi	r20, 0x65	; 101
+	brne	exitBootloader
+    3f78:	09 f4       	brne	.+2      	; 0x3f7c <exitBootloader>
+	rjmp	uartPutReturnAndMainLoop
+    3f7a:	85 cf       	rjmp	.-246    	; 0x3e86 <uartPutReturnAndMainLoop>
+
+00003f7c <exitBootloader>:
+
+exitBootloader:
+	cpi		RXCHAR, 'E'
+    3f7c:	45 34       	cpi	r20, 0x45	; 69
+	brne	getProgrammerType
+    3f7e:	31 f4       	brne	.+12     	; 0x3f8c <getProgrammerType>
+	ldi		TEMP, '\r'
+    3f80:	5d e0       	ldi	r21, 0x0D	; 13
+	rcall 	uartPut
+    3f82:	63 df       	rcall	.-314    	; 0x3e4a <uartPut>
+  ldi   TEMP, (1 << WDE)  ; force watchdog reset
+    3f84:	58 e0       	ldi	r21, 0x08	; 8
+  sts   _SFR_MEM_ADDR(WDTCSR), TEMP
+    3f86:	50 93 60 00 	sts	0x0060, r21	; 0x800060 <__DATA_REGION_ORIGIN__>
+
+00003f8a <infiniteLoop>:
+infiniteLoop:
+  rjmp  infiniteLoop
+    3f8a:	ff cf       	rjmp	.-2      	; 0x3f8a <infiniteLoop>
+
+00003f8c <getProgrammerType>:
+
+getProgrammerType:
+	cpi		RXCHAR, 'p'
+    3f8c:	40 37       	cpi	r20, 0x70	; 112
+	brne	reportSupportedDeviceCodes
+    3f8e:	11 f4       	brne	.+4      	; 0x3f94 <reportSupportedDeviceCodes>
+	ldi		TEMP, 'S'
+    3f90:	53 e5       	ldi	r21, 0x53	; 83
+  rjmp  uartPutAndMainLoop
+    3f92:	7a cf       	rjmp	.-268    	; 0x3e88 <uartPutAndMainLoop>
+
+00003f94 <reportSupportedDeviceCodes>:
+
+reportSupportedDeviceCodes:
+	cpi		RXCHAR, 't'
+    3f94:	44 37       	cpi	r20, 0x74	; 116
+	brne	setLED
+    3f96:	21 f4       	brne	.+8      	; 0x3fa0 <setLED>
+	ldi		TEMP, PART_CODE
+    3f98:	59 e7       	ldi	r21, 0x79	; 121
+	rcall	uartPut
+    3f9a:	57 df       	rcall	.-338    	; 0x3e4a <uartPut>
+	ldi		TEMP, 0x00
+    3f9c:	50 e0       	ldi	r21, 0x00	; 0
+  rjmp uartPutAndMainLoop
+    3f9e:	74 cf       	rjmp	.-280    	; 0x3e88 <uartPutAndMainLoop>
+
+00003fa0 <setLED>:
+
+setLED:
+	cpi		RXCHAR, 'x'
+    3fa0:	48 37       	cpi	r20, 0x78	; 120
+	breq	getByteAndPutReturnAndMainLoop
+    3fa2:	11 f0       	breq	.+4      	; 0x3fa8 <getByteAndPutReturnAndMainLoop>
+
+00003fa4 <clearLED>:
+
+clearLED:
+	cpi		RXCHAR, 'y'
+    3fa4:	49 37       	cpi	r20, 0x79	; 121
+	brne	enterProgrammingMode
+    3fa6:	11 f4       	brne	.+4      	; 0x3fac <enterProgrammingMode>
+
+00003fa8 <getByteAndPutReturnAndMainLoop>:
+
+getByteAndPutReturnAndMainLoop:
+	rcall 	uartGet
+    3fa8:	67 df       	rcall	.-306    	; 0x3e78 <uartGet>
+
+00003faa <putReturnAndMainLoop>:
+putReturnAndMainLoop:
+	rjmp	uartPutReturnAndMainLoop
+    3faa:	6d cf       	rjmp	.-294    	; 0x3e86 <uartPutReturnAndMainLoop>
+
+00003fac <enterProgrammingMode>:
+
+enterProgrammingMode:
+	cpi		RXCHAR, 'P'
+    3fac:	40 35       	cpi	r20, 0x50	; 80
+	breq	putReturnAndMainLoop
+    3fae:	e9 f3       	breq	.-6      	; 0x3faa <putReturnAndMainLoop>
+
+00003fb0 <leaveProgrammingMode>:
+
+leaveProgrammingMode:
+	cpi		RXCHAR, 'L'
+    3fb0:	4c 34       	cpi	r20, 0x4C	; 76
+	breq	putReturnAndMainLoop
+    3fb2:	d9 f3       	breq	.-10     	; 0x3faa <putReturnAndMainLoop>
+
+00003fb4 <getFuseBytes>:
+
+getFuseBytes:
+	cpi		RXCHAR, 'r'
+    3fb4:	42 37       	cpi	r20, 0x72	; 114
+	breq	putZeroAndMainLoop
+    3fb6:	f1 f0       	breq	.+60     	; 0x3ff4 <putZeroAndMainLoop>
+	cpi		RXCHAR, 'F'
+    3fb8:	46 34       	cpi	r20, 0x46	; 70
+	breq	putZeroAndMainLoop
+    3fba:	e1 f0       	breq	.+56     	; 0x3ff4 <putZeroAndMainLoop>
+	cpi		RXCHAR, 'N'
+    3fbc:	4e 34       	cpi	r20, 0x4E	; 78
+	breq	putZeroAndMainLoop
+    3fbe:	d1 f0       	breq	.+52     	; 0x3ff4 <putZeroAndMainLoop>
+	cpi		RXCHAR, 'Q'
+    3fc0:	41 35       	cpi	r20, 0x51	; 81
+	breq	putZeroAndMainLoop
+    3fc2:	c1 f0       	breq	.+48     	; 0x3ff4 <putZeroAndMainLoop>
+
+00003fc4 <setDeviceType>:
+
+setDeviceType:
+	cpi		RXCHAR, 'T'
+    3fc4:	44 35       	cpi	r20, 0x54	; 84
+	brne	returnProgrammerID
+    3fc6:	11 f4       	brne	.+4      	; 0x3fcc <returnProgrammerID>
+	rcall uartGet
+    3fc8:	57 df       	rcall	.-338    	; 0x3e78 <uartGet>
+	rjmp	uartPutReturnAndMainLoop
+    3fca:	5d cf       	rjmp	.-326    	; 0x3e86 <uartPutReturnAndMainLoop>
+
+00003fcc <returnProgrammerID>:
+
+returnProgrammerID:
+	cpi		RXCHAR, 'S'
+    3fcc:	43 35       	cpi	r20, 0x53	; 83
+	brne	returnSoftwareVersion
+    3fce:	19 f4       	brne	.+6      	; 0x3fd6 <returnSoftwareVersion>
+	ldi		ZL, lo8(programmerType)
+    3fd0:	ea e1       	ldi	r30, 0x1A	; 26
+	ldi   ZH, hi8(programmerType)
+    3fd2:	fe e3       	ldi	r31, 0x3E	; 62
+	rjmp	putString
+    3fd4:	09 c0       	rjmp	.+18     	; 0x3fe8 <putString>
+
+00003fd6 <returnSoftwareVersion>:
+
+returnSoftwareVersion:
+	cpi		RXCHAR, 'V'
+    3fd6:	46 35       	cpi	r20, 0x56	; 86
+	brne	returnSignatureBytes
+    3fd8:	19 f4       	brne	.+6      	; 0x3fe0 <returnSignatureBytes>
+	ldi		ZL, lo8(softwareVersion)
+    3fda:	e6 e2       	ldi	r30, 0x26	; 38
+	ldi		ZH, hi8(softwareVersion)
+    3fdc:	fe e3       	ldi	r31, 0x3E	; 62
+	rjmp	putString
+    3fde:	04 c0       	rjmp	.+8      	; 0x3fe8 <putString>
+
+00003fe0 <returnSignatureBytes>:
+
+returnSignatureBytes:
+	cpi		RXCHAR, 's'
+    3fe0:	43 37       	cpi	r20, 0x73	; 115
+	brne	syncCharacter
+    3fe2:	21 f4       	brne	.+8      	; 0x3fec <syncCharacter>
+	ldi		ZL, lo8(signatureBytes)
+    3fe4:	e2 e2       	ldi	r30, 0x22	; 34
+	ldi   ZH, hi8(signatureBytes)
+    3fe6:	fe e3       	ldi	r31, 0x3E	; 62
+
+00003fe8 <putString>:
+putString:
+	rcall	uartPutString
+    3fe8:	40 df       	rcall	.-384    	; 0x3e6a <uartPutString>
+
+00003fea <syncCharacterDone>:
+syncCharacterDone:
+	rjmp	mainLoop
+    3fea:	4f cf       	rjmp	.-354    	; 0x3e8a <mainLoop>
+
+00003fec <syncCharacter>:
+
+syncCharacter:
+	cpi		RXCHAR, 0x1b
+    3fec:	4b 31       	cpi	r20, 0x1B	; 27
+	breq	syncCharacterDone
+    3fee:	e9 f3       	breq	.-6      	; 0x3fea <syncCharacterDone>
+	ldi		TEMP, '?'
+    3ff0:	5f e3       	ldi	r21, 0x3F	; 63
+  rjmp	uartPutAndMainLoop
+    3ff2:	4a cf       	rjmp	.-364    	; 0x3e88 <uartPutAndMainLoop>
+
+00003ff4 <putZeroAndMainLoop>:
+
+putZeroAndMainLoop:
+	ldi		TEMP, 0
+    3ff4:	50 e0       	ldi	r21, 0x00	; 0
+	rjmp	uartPutAndMainLoop
+    3ff6:	48 cf       	rjmp	.-368    	; 0x3e88 <uartPutAndMainLoop>
