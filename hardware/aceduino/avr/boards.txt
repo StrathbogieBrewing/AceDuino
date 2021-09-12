@@ -65,3 +65,34 @@ m168xt4m.bootloader.unlock_bits=0x3F
 m168xt4m.bootloader.lock_bits=0x0F
 
 m168xt4m.bootloader.file=avr109/m168xt4m/m168xt4m.hex
+
+##############################################################
+
+# m2560xt16m.name=Arduino Mega or Mega 2560
+# 
+# m2560xt16m.vid.0=0x2341
+# m2560xt16m.pid.0=0x0010
+# m2560xt16m.vid.1=0x2341
+# m2560xt16m.pid.1=0x0042
+# m2560xt16m.vid.2=0x2A03
+# m2560xt16m.pid.2=0x0010
+# m2560xt16m.vid.3=0x2A03
+# m2560xt16m.pid.3=0x0042
+# m2560xt16m.vid.4=0x2341
+# m2560xt16m.pid.4=0x0210
+# m2560xt16m.vid.5=0x2341
+# m2560xt16m.pid.5=0x0242
+# 
+# m2560xt16m.upload.tool=arduino:avrdude
+# m2560xt16m.upload.maximum_data_size=8192
+# 
+# m2560xt16m.bootloader.tool=arduino:avrdude
+# m2560xt16m.bootloader.low_fuses=0xFF
+# m2560xt16m.bootloader.unlock_bits=0x3F
+# m2560xt16m.bootloader.lock_bits=0x0F
+# 
+# m2560xt16m.build.f_cpu=16000000L
+# m2560xt16m.build.mcu=atmega2560
+# m2560xt16m.build.core=arduino:arduino
+# m2560xt16m.build.variant=arduino:mega
+# m2560xt16m.build.board=AVR_MEGA2560
