@@ -29,7 +29,7 @@ m8rc8m.build.board=AVR_NG
 m8rc8m.build.core=arduino:arduino
 m8rc8m.build.variant=arduino:standard
 
-m8rc8m.upload.maximum_size=7680
+m8rc8m.upload.maximum_size=8192
 m8rc8m.upload.maximum_data_size=1024
 m8rc8m.upload.tool=arduino:avrdude
 
@@ -59,6 +59,26 @@ m8xt4m.bootloader.high_fuses=0xd9
 #m8xt4m.bootloader.file=avr109/m8rc1m/m8rc8m.hex
 m8xt4m.bootloader.unlock_bits=0x3F
 m8xt4m.bootloader.lock_bits=0x3F
+
+##############################################################
+
+m8xt8m.name=ATMEGA8-XT8M
+m8xt8m.build.mcu=atmega8
+m8xt8m.build.f_cpu=8000000L
+m8xt8m.build.board=AVR_NG
+m8xt8m.build.core=arduino:arduino
+m8xt8m.build.variant=arduino:standard
+
+m8xt8m.upload.maximum_size=8192
+m8xt8m.upload.maximum_data_size=1024
+m8xt8m.upload.tool=arduino:avrdude
+
+m8xt8m.bootloader.tool=arduino:avrdude
+m8xt8m.bootloader.low_fuses=0xef
+m8xt8m.bootloader.high_fuses=0xd9
+#m8xt8m.bootloader.file=avr109/m8rc1m/m8rc8m.hex
+m8xt8m.bootloader.unlock_bits=0x3F
+m8xt8m.bootloader.lock_bits=0x3F
 
 ##############################################################
 m168xt4m.name=ATMEGA168-XT4M
