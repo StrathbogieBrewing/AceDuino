@@ -69,14 +69,17 @@ m8xt8m.build.board=AVR_NG
 m8xt8m.build.core=arduino:arduino
 m8xt8m.build.variant=arduino:standard
 
-m8xt8m.upload.maximum_size=8192
+m8xt8m.upload.maximum_size=7680
 m8xt8m.upload.maximum_data_size=1024
 m8xt8m.upload.tool=arduino:avrdude
+m8xt8m.upload.speed=9600
+m8xt8m.upload.protocol=avr109
+m8xt8m.upload.params.quiet=-q
 
 m8xt8m.bootloader.tool=arduino:avrdude
-m8xt8m.bootloader.low_fuses=0xef
-m8xt8m.bootloader.high_fuses=0xd9
-#m8xt8m.bootloader.file=avr109/m8rc1m/m8rc8m.hex
+m8xt8m.bootloader.low_fuses=0xEF
+m8xt8m.bootloader.high_fuses=0xD4
+m8xt8m.bootloader.file=avr109/m8xt8m/m8xt8m.hex
 m8xt8m.bootloader.unlock_bits=0x3F
 m8xt8m.bootloader.lock_bits=0x3F
 
