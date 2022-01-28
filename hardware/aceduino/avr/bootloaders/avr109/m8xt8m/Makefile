@@ -58,7 +58,7 @@ clean:
 	-rm -rf $(OBJECTS) $(PROJECT).elf $(PROJECT).hex  $(PROJECT).lss $(PROJECT).map $(OBJECTS).d
 
 	# default LFUSE 1 MHZ Internal RC, No brown out
-	LFUSE = 0xE1
+	LFUSE = 0xBF
 
 	# change HFUSE for 512 bytes of boot memory and move reset vector to boot memory
 	# enable CKOPT
