@@ -1,5 +1,5 @@
 git@github.com:StrathbogieBrewing/AceBMS.git
-git@github.com:StrathbogieBrewing/TinBus.git
+git@github.com:StrathbogieBrewing/AceBus.git
 git@github.com:StrathbogieBrewing/AceMessage.git
 git@github.com:StrathbogieBrewing/MCP2515.git
 git@github.com:StrathbogieBrewing/VEDirect.git
@@ -11,3 +11,4 @@ git@github.com:StrathbogieBrewing/AceMPPT.git
 git@github.com:StrathbogieBrewing/AceDump.git
 git@github.com:StrathbogieBrewing/AceGrid.git
 git@github.com:StrathbogieBrewing/bore.git
+git@github.com:StrathbogieBrewing/NTC.git
